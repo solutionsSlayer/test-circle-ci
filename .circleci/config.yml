@@ -44,7 +44,7 @@ workflows:
 
       - build
 
-      - unit_tests:
+      - unit-tests:
           requires:
             - build
 
@@ -58,7 +58,7 @@ workflows:
 
       - deploy_prod:
           requires:
-            - unit_tests
+            - unit-tests
           filters:
             branches:
               only:
