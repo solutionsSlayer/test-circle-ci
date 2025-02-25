@@ -3,10 +3,10 @@ type Props = {
   searchParams?: { [key: string]: string | string[] | undefined };
 };
 
-export async function generateMetadata({ params }: Props) {
+export async function generateMetadata({ params }: { params: { slug: string } }) {
   return { title: `Post: ${params.slug}` };
 }
 
-export default async function Page({ params }: Props) {
+export default function Page({ params }: { params: { slug: string } }) {
   return <h1>Slug: {params.slug}</h1>;
 }
