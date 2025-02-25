@@ -5,13 +5,12 @@ import { render, screen } from "@testing-library/react";
 import Home from "@/pages/home/index";
 
 describe("Home", () => {
-  it("renders a heading", () => {
+  it("renders the calculator component", () => {
     render(<Home />);
-
-    const heading = screen.getByRole("heading", {
-      name: /welcome to next\.js!/i,
-    });
-
-    expect(heading).toBeInTheDocument();
+    
+    // Verify calculator is rendered by checking for its inputs
+    expect(screen.getByPlaceholderText("Number A")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Number B")).toBeInTheDocument();
+    expect(screen.getByRole("combobox")).toBeInTheDocument();
   });
 });
