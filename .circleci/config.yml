@@ -3,38 +3,112 @@ version: 2.1
 orbs:
   node: circleci/node@5.0.2
 
-jobs:
-  build_and_test:
-    docker:
-      - image: cimg/node:18.17 # Version LTS recommandée pour Next.js
+# Définition des paramètres réutilisables
+parameters:
+  deploy-environment:
+    type: string
+    default: "development"
+
+# Commandes réutilisables
+commands:
+  install-dependencies:
     steps:
       - checkout
-      
-      # Restauration du cache
       - node/install-packages:
           pkg-manager: npm
           cache-path: ~/.npm
-          
-      # Build Next.js
+
+jobs:
+  build_and_test:
+    docker:
+      - image: cimg/node:18.20.7
+    steps:
+      - install-dependencies
       - run:
           name: Build Next.js
           command: npm run build
-          
-      # Tests
       - run:
           name: Run Tests
-          command: npm run test:ci # Utilisation du script test:ci défini dans package.json
-          
-      # Stockage des résultats
+          command: npm run test:ci
       - store_test_results:
           path: ./coverage
-          
       - store_artifacts:
           path: ./coverage
           destination: coverage-report
 
+  quality_checks:
+    docker:
+      - image: cimg/node:18.20.7
+    steps:
+      - install-dependencies
+      - run:
+          name: Lint Check
+          command: npm run lint
+      - run:
+          name: Format Check
+          command: npm run format
+
+  deploy:
+    docker:
+      - image: cimg/node:18.20.7
+    steps:
+      - install-dependencies
+      - run:
+          name: Install Vercel CLI
+          command: npm install --global vercel@latest
+      - run:
+          name: Deploy to Vercel
+          command: |
+            if [ "${CIRCLE_BRANCH}" == "main" ]; then
+              echo "Deploying to production..."
+              vercel deploy --prod --token=${VERCEL_TOKEN} --yes
+            elif [ "${CIRCLE_BRANCH}" == "integration" ]; then
+              echo "Deploying to staging..."
+              vercel deploy --token=${VERCEL_TOKEN} --yes --build-env ENVIRONMENT=staging
+            elif [ "${CIRCLE_BRANCH}" == "develop" ]; then
+              echo "Deploying to development..."
+              vercel deploy --token=${VERCEL_TOKEN} --yes --build-env ENVIRONMENT=development
+            else
+              echo "Branch not configured for deployment"
+              exit 1
+            fi
+
 workflows:
   version: 2
-  build_test_deploy:
+  branch-workflow:
+    jobs:
+      # Toujours exécuter les tests
+      - build_and_test
+
+      # Exécuter les contrôles de qualité sur toutes les branches
+      - quality_checks:
+          requires:
+            - build_and_test
+
+      # Déploiement conditionnel selon la branche
+      - deploy:
+          requires:
+            - quality_checks
+          filters:
+            branches:
+              only:
+                - main
+                - integration
+                - develop
+          context:
+            - vercel-deployment
+
+  # Workflow nocturne pour les tests complets
+  nightly:
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - main
     jobs:
       - build_and_test
+      - quality_checks:
+          requires:
+            - build_and_test

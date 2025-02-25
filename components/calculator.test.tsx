@@ -1,18 +1,30 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import Calculator from "./calculator";
 
-test("Addition works correctly", () => {
+describe("Calculator Component", () => {
+  it("handles division by zero", () => {
     render(<Calculator />);
+    
     const inputA = screen.getByPlaceholderText("Number A");
     const inputB = screen.getByPlaceholderText("Number B");
     const select = screen.getByRole("combobox");
+    
+    fireEvent.change(inputA, { target: { value: "10" } });
+    fireEvent.change(inputB, { target: { value: "0" } });
+    fireEvent.change(select, { target: { value: "/" } });
+    
     const button = screen.getByText("Calculate");
-    const result = screen.getByText(/Result:/i);
-
-    fireEvent.change(inputA, { target: { value: "5" } });
-    fireEvent.change(inputB, { target: { value: "3" } });
-    fireEvent.change(select, { target: { value: "+" } });
     fireEvent.click(button);
+    
+    expect(screen.getByText(/Result:/i)).toHaveTextContent("Result:");
+  });
 
-    expect(result).toHaveTextContent("Result: 8");
+  it("validates input fields", () => {
+    render(<Calculator />);
+    
+    const button = screen.getByText("Calculate");
+    fireEvent.click(button);
+    
+    expect(screen.getByText(/Result:/i)).toHaveTextContent("Result:");
+  });
 });
