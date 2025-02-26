@@ -12,6 +12,6 @@ export async function generateMetadata({
   return { title: `Post: ${params.slug}` };
 }
 
-export default function Page({ params, searchParams }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
   return <ClientPage />;
 }
