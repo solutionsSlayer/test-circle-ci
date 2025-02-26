@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
-  searchParams?: { [key: string]: string | string[] | undefined };
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export async function generateMetadata({
@@ -12,7 +12,8 @@ export async function generateMetadata({
   return { title: `Post: ${resolvedParams.slug}` };
 }
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
   const resolvedParams = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   return <h1>Slug: {resolvedParams.slug}</h1>;
 }
