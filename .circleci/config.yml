@@ -63,8 +63,8 @@ jobs:
               echo "Deploying to production..."
               vercel deploy --prod --token=${VERCEL_TOKEN} --yes
             elif [ "${CIRCLE_BRANCH}" == "integration" ]; then
-              echo "Deploying to staging..."
-              vercel deploy --token=${VERCEL_TOKEN} --yes --build-env ENVIRONMENT=staging
+              echo "Deploying to integration..."
+              vercel deploy --token=${VERCEL_TOKEN} --yes --build-env ENVIRONMENT=integration
             elif [ "${CIRCLE_BRANCH}" == "develop" ]; then
               echo "Deploying to development..."
               vercel deploy --token=${VERCEL_TOKEN} --yes --build-env ENVIRONMENT=development
