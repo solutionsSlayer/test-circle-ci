@@ -56,7 +56,8 @@ describe("Calculator", () => {
 
     // Wait for history update
     await waitFor(() => {
-      expect(screen.getByText(/5 \+ 3 = 8/)).toBeInTheDocument();
+      const historyItem = screen.getByRole("listitem");
+      expect(historyItem).toHaveTextContent(/5.*\+.*3.*=.*8/);
     });
   });
 

@@ -11,7 +11,8 @@ jest.mock('next/head', () => {
   };
 });
 
-it("renders homepage unchanged", () => {
+it("renders homepage unchanged", async () => {
   const { container } = render(<Home />);
+  await new Promise(resolve => setTimeout(resolve, 0)); // Allow async operations to complete
   expect(container).toMatchSnapshot();
 });
