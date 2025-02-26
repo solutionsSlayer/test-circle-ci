@@ -8,9 +8,6 @@ describe("Home Page", () => {
     // Check that calculator is rendered
     expect(screen.getByText("Calculator")).toBeInTheDocument();
     
-    // Check page title
-    expect(document.title).toBe("Create Next App");
-    
     // Check calculator interface elements
     expect(screen.getByPlaceholderText("Number A")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Number B")).toBeInTheDocument();

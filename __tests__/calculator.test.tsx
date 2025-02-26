@@ -1,14 +1,27 @@
 /**
  * @jest-environment jsdom
  */
-import { render, screen, fireEvent } from "@testing-library/react";
-import Home from "@/pages/home/index";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import Home from "@/pages/home";
 
 describe("Calculator", () => {
-  it("performs calculation correctly", () => {
+  beforeEach(() => {
+    // Mock fetch API
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        json: () => Promise.resolve([])
+      })
+    ) as jest.Mock;
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it("performs calculation correctly", async () => {
     render(<Home />);
     
-    // Remplir les champs
+    // Fill in the fields
     const inputA = screen.getByPlaceholderText("Number A");
     const inputB = screen.getByPlaceholderText("Number B");
     const operation = screen.getByRole("combobox");
@@ -17,11 +30,30 @@ describe("Calculator", () => {
     fireEvent.change(inputB, { target: { value: "3" } });
     fireEvent.change(operation, { target: { value: "+" } });
     
-    // Cliquer sur Calculate
+    // Mock API responses
+    global.fetch = jest.fn()
+      .mockImplementationOnce(() => Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve()
+      }))
+      .mockImplementationOnce(() => Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([
+          { a: 5, b: 3, operator: "+", result: 8 }
+        ])
+      }));
+
+    // Perform calculation
     fireEvent.click(screen.getByText("Calculate"));
     
-    // Vérifier le résultat
+    // Check result
     expect(screen.getByText("Result: 8")).toBeInTheDocument();
+    
+    // Wait for history update
+    await waitFor(() => {
+      const historyItem = screen.getByRole("listitem");
+      expect(historyItem).toHaveTextContent("5 + 3 = 8");
+    });
   });
 
   it("adds calculation to history", () => {
