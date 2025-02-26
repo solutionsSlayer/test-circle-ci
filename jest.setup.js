@@ -1,6 +1,7 @@
 // Learn more: https://github.com/testing-library/jest-dom
 import "@testing-library/jest-dom";
 import "whatwg-fetch"; // Polyfill pour Fetch API
+import { act } from '@testing-library/react';
 
 // Suppress act() warnings
 global.IS_REACT_ACT_ENVIRONMENT = true;
@@ -23,3 +24,18 @@ jest.mock('next/image', () => ({
     return <img {...props} alt={props.alt} />;
   },
 }));
+
+// Mock fetch
+global.fetch = jest.fn(() =>
+  Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve([])
+  })
+);
+
+// Helper to suppress act() warnings
+global.asyncAct = async (callback) => {
+  await act(async () => {
+    await callback();
+  });
+};
