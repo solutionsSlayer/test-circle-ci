@@ -1,23 +1,17 @@
-'use client';
-
 import { Metadata } from 'next';
-import { useParams, useSearchParams } from 'next/navigation';
+import ClientPage from './client-page';
 
 interface PageProps {
-  params: Promise<{ slug: string }>;
-  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+  params: { slug: string };
+  searchParams?: { [key: string]: string | string[] | undefined };
 }
 
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
-  const resolvedParams = await params;
-  return { title: `Post: ${resolvedParams.slug}` };
+  return { title: `Post: ${params.slug}` };
 }
 
-export default function Page() {
-  const params = useParams();
-  const searchParams = useSearchParams();
-  
-  return <h1>Slug: {params?.slug}</h1>;
+export default function Page({ params, searchParams }: PageProps) {
+  return <ClientPage />;
 }

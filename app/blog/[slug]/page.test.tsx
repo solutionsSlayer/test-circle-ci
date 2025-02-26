@@ -3,7 +3,7 @@
  */
 import { render } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import Page from "./page";
+import ClientPage from "./client-page";
 
 jest.mock('next/navigation', () => ({
   useParams: () => ({
@@ -15,7 +15,7 @@ jest.mock('next/navigation', () => ({
 describe("Blog Page", () => {
   it("renders blog page", () => {
     const { container } = render(
-      <Page />
+      <ClientPage />
     );
     
     expect(container).toHaveTextContent("Slug: test-post");
