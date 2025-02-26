@@ -21,9 +21,7 @@ describe("Calculator", () => {
   });
 
   it("performs calculation correctly", async () => {
-    await act(async () => {
-      render(<Home />);
-    });
+    render(<Home />);
     
     // Fill in the fields
     const inputA = screen.getByPlaceholderText("Number A");
@@ -36,16 +34,16 @@ describe("Calculator", () => {
       fireEvent.change(operation, { target: { value: "+" } });
     });
 
-    // Mock API response for calculation
+    // Mock API responses
     global.fetch = jest.fn()
       .mockImplementationOnce(() => Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ result: 8 })
+        json: () => Promise.resolve({ success: true })
       }))
       .mockImplementationOnce(() => Promise.resolve({
         ok: true,
         json: () => Promise.resolve([
-          { numberA: 5, numberB: 3, operation: "+", result: 8 }
+          { a: 5, b: 3, operator: "+", result: 8 }
         ])
       }));
 
@@ -56,25 +54,47 @@ describe("Calculator", () => {
 
     // Wait for history update
     await waitFor(() => {
+      expect(screen.getByText("Result: 8")).toBeInTheDocument();
       const historyItem = screen.getByRole("listitem");
-      expect(historyItem).toHaveTextContent(/5.*\+.*3.*=.*8/);
+      expect(historyItem).toHaveTextContent("5 + 3 = 8");
     });
   });
 
-  it("adds calculation to history", () => {
+  it("adds calculation to history", async () => {
     render(<Home />);
     
-    // Effectuer un calcul
+    // Fill in the fields
     const inputA = screen.getByPlaceholderText("Number A");
     const inputB = screen.getByPlaceholderText("Number B");
     const operation = screen.getByRole("combobox");
     
-    fireEvent.change(inputA, { target: { value: "5" } });
-    fireEvent.change(inputB, { target: { value: "3" } });
-    fireEvent.change(operation, { target: { value: "+" } });
-    fireEvent.click(screen.getByText("Calculate"));
-    
-    // Vérifier l'historique
-    expect(screen.getByText("5 + 3 = 8")).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.change(inputA, { target: { value: "5" } });
+      fireEvent.change(inputB, { target: { value: "3" } });
+      fireEvent.change(operation, { target: { value: "+" } });
+    });
+
+    // Mock API responses
+    global.fetch = jest.fn()
+      .mockImplementationOnce(() => Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ success: true })
+      }))
+      .mockImplementationOnce(() => Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([
+          { a: 5, b: 3, operator: "+", result: 8 }
+        ])
+      }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("Calculate"));
+    });
+
+    // Wait for the history to update
+    await waitFor(() => {
+      const historyItem = screen.getByRole("listitem");
+      expect(historyItem).toHaveTextContent(/5.*\+.*3.*=.*8/);
+    });
   });
 }); 
