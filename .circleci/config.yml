@@ -14,6 +14,17 @@ commands:
           cache-version: v1
           override-ci-command: npm ci
 
+  # Added a reusable command for Vercel CLI installation
+  install_vercel_cli:
+    description: "Install Vercel CLI without permission issues"
+    steps:
+      - run:
+          name: Install Vercel CLI
+          command: |
+            sudo npm install -g vercel@latest || npm install --no-global vercel@latest
+            # Ensure vercel is available in the PATH
+            export PATH="$PATH:$(npm bin)"
+
 jobs:
   # Builds the application and creates artifacts that can be used by subsequent jobs
   build:
@@ -81,9 +92,7 @@ jobs:
       - setup_environment
       - attach_workspace:
           at: .
-      - run:
-          name: Install Vercel CLI
-          command: npm install --global vercel@latest
+      - install_vercel_cli
       - run:
           name: Deploy to Preview
           command: |
@@ -114,9 +123,7 @@ jobs:
       - setup_environment
       - attach_workspace:
           at: .
-      - run:
-          name: Install Vercel CLI
-          command: npm install --global vercel@latest
+      - install_vercel_cli
       - run:
           name: Deploy to Staging
           command: |
@@ -137,9 +144,7 @@ jobs:
       - setup_environment
       - attach_workspace:
           at: .
-      - run:
-          name: Install Vercel CLI
-          command: npm install --global vercel@latest
+      - install_vercel_cli
       - run:
           name: Deploy to Production
           command: |
