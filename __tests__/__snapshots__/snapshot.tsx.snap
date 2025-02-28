@@ -5,6 +5,13 @@ exports[`renders homepage unchanged 1`] = `
   <div
     class="container"
   >
+    <title>
+      Create Next App
+    </title>
+    <link
+      href="/favicon.ico"
+      rel="icon"
+    />
     <div>
       <h1>
         Calculator

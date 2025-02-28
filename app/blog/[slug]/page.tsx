@@ -1,13 +1,19 @@
-type Params = {
-  params: {
-    slug: string;
-  };
-};
+import { Metadata } from 'next';
+import ClientPage from './client-page';
 
-export async function generateMetadata({ params }: Params) {
-  return { title: `Post: ${params.slug}` };
+interface PageProps {
+  params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default function Page({ params }: Params) {
-  return <h1>Slug: {params.slug}</h1>;
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const resolvedParams = await params;
+  return { title: `Post: ${resolvedParams.slug}` };
+}
+
+export default async function Page({ params, searchParams }: PageProps) {
+  const _resolvedParams = await params;
+  const _resolvedSearchParams = searchParams ? await searchParams : undefined;
+
+  return <ClientPage />;
 }
