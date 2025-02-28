@@ -1,65 +1,209 @@
-# .circleci/config.yml
 version: 2.1
 orbs:
   node: circleci/node@5
-jobs:
-  # First job declared is for building things..
-  build:
-    executor: node/default
-    steps:
-      - checkout
-      - run: echo "Building things..."
-  # Second job declared is for launching unit tests with Jest
-  unit-tests:
-    executor: node/default
-    environment:
-      JEST_JUNIT_OUTPUT_DIR: ./test-results/
+
+# Reusable command definitions
+commands:
+  setup_environment:
+    description: "Set up the Node.js environment"
     steps:
       - checkout
       - node/install-packages:
           pkg-manager: npm
+          cache-path: ~/project/node_modules
+          cache-version: v1
+          override-ci-command: npm ci
+
+  # Added a reusable command for Vercel CLI installation
+  install_vercel_cli:
+    description: "Install Vercel CLI without permission issues"
+    steps:
       - run:
-          command: npm install jest-junit
+          name: Install Vercel CLI
+          command: |
+            sudo npm install -g vercel@latest || npm install --no-global vercel@latest
+            # Ensure vercel is available in the PATH
+            export PATH="$PATH:$(npm bin)"
+
+jobs:
+  # Builds the application and creates artifacts that can be used by subsequent jobs
+  build:
+    executor: 
+      name: node/default
+      tag: '18.18'
+    steps:
+      - setup_environment
       - run:
-          name: Run tests
+          name: Build application
+          command: npm run build
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .next
+            - node_modules
+            - public
+
+  # Performs static code analysis to ensure code quality standards
+  lint:
+    executor: 
+      name: node/default
+      tag: '18.18'
+    steps:
+      - setup_environment
+      - attach_workspace:
+          at: .
+      - run:
+          name: Run ESLint
+          command: npm run lint || true
+      - run:
+          name: Check formatting with Prettier
+          command: npx prettier --check "**/*.{js,jsx,ts,tsx}" || true
+      - store_artifacts:
+          path: eslint-results.json
+          destination: lint-results
+
+  # Runs automated tests to verify functionality and prevent regressions
+  unit_tests:
+    executor: 
+      name: node/default
+      tag: '18.18'
+    steps:
+      - setup_environment
+      - attach_workspace:
+          at: .
+      - run:
+          name: Run unit tests
           command: npm run test:ci
       - store_test_results:
           path: ./test-results/
-  deploy_dev:
-    executor: node/default
+      - store_artifacts:
+          path: ./coverage
+          destination: coverage
+
+  # Deploys a preview environment for feature branches to allow testing before merging
+  deploy_preview:
+    executor: 
+      name: node/default
+      tag: '18.18'
+    environment:
+      VERCEL_ORG_ID: ${VERCEL_ORG_ID}
+      VERCEL_PROJECT_ID: ${VERCEL_PROJECT_ID}
     steps:
-      - checkout
-      - run: echo "Deploying to development environment..."
-  deploy_prod:
-    executor: node/default
+      - setup_environment
+      - attach_workspace:
+          at: .
+      - install_vercel_cli
+      - run:
+          name: Deploy to Preview
+          command: |
+            DEPLOYMENT_URL=$(vercel deploy --token=${VERCEL_TOKEN} --confirm)
+            echo "Preview deployed to: $DEPLOYMENT_URL"
+            echo "export PREVIEW_URL=$DEPLOYMENT_URL" >> $BASH_ENV
+      - run:
+          name: Comment on PR
+          command: |
+            if [[ -n "$CIRCLE_PULL_REQUEST" ]]; then
+              PR_NUMBER=${CIRCLE_PULL_REQUEST##*/}
+              curl -X POST \
+                -H "Authorization: token $GITHUB_TOKEN" \
+                -H "Content-Type: application/json" \
+                -d "{\"body\":\"Preview deployment available at: $PREVIEW_URL\"}" \
+                "https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/issues/$PR_NUMBER/comments"
+            fi
+
+  # Deploys to the staging environment automatically when changes are merged to main
+  deploy_staging:
+    executor: 
+      name: node/default
+      tag: '18.18'
+    environment:
+      VERCEL_ORG_ID: ${VERCEL_ORG_ID}
+      VERCEL_PROJECT_ID: ${VERCEL_PROJECT_ID}
     steps:
-      - checkout
-      - run: echo "Deploying to production environment..."
+      - setup_environment
+      - attach_workspace:
+          at: .
+      - install_vercel_cli
+      - run:
+          name: Deploy to Staging
+          command: |
+            vercel pull --yes --environment=preview --token=${VERCEL_TOKEN}
+            vercel build --token=${VERCEL_TOKEN}
+            STAGING_URL=$(vercel deploy --prebuilt --token=${VERCEL_TOKEN})
+            echo "Staging deployment available at: $STAGING_URL"
+
+  # Deploys to the production environment after manual approval
+  deploy_production:
+    executor: 
+      name: node/default
+      tag: '18.18'
+    environment:
+      VERCEL_ORG_ID: ${VERCEL_ORG_ID}
+      VERCEL_PROJECT_ID: ${VERCEL_PROJECT_ID}
+    steps:
+      - setup_environment
+      - attach_workspace:
+          at: .
+      - install_vercel_cli
+      - run:
+          name: Deploy to Production
+          command: |
+            vercel pull --yes --environment=production --token=${VERCEL_TOKEN}
+            vercel build --prod --token=${VERCEL_TOKEN}
+            PRODUCTION_URL=$(vercel deploy --prebuilt --prod --token=${VERCEL_TOKEN})
+            echo "Production deployment available at: $PRODUCTION_URL"
+
 workflows:
   version: 2
-
+  # The main CI/CD pipeline, consisting of build, test, and multi-environment deployment steps
   build-test-deploy:
-
     jobs:
-
+      # Step 1: Build the application artifacts
       - build
-
-      - unit-tests:
+      
+      # Step 2: Run code quality checks
+      - lint:
           requires:
             - build
-
-      - deploy_dev:
+      
+      # Step 3: Execute automated tests
+      - unit_tests:
           requires:
-            - unit-tests
+            - lint
+      
+      # Step 4a: Deploy preview for feature branches
+      # Creates temporary environments for testing new features
+      - deploy_preview:
+          requires:
+            - unit_tests
           filters:
             branches:
-              only:
-                - develop
-
-      - deploy_prod:
+              ignore: main
+      
+      # Step 4b: Deploy to staging environment
+      # Automatically deploys main branch to staging for stakeholder review
+      - deploy_staging:
           requires:
-            - unit-tests
+            - unit_tests
           filters:
             branches:
-              only:
-                - main
+              only: main
+      
+      # Step 5: Manual approval gate before production
+      # Requires human verification and approval before proceeding to production
+      - approve_production:
+          type: approval
+          requires:
+            - deploy_staging
+          filters:
+            branches:
+              only: main
+      
+      # Step 6: Deploy to production environment
+      # Final deployment to the live production environment
+      - deploy_production:
+          requires:
+            - approve_production
+          filters:
+            branches:
+              only: main

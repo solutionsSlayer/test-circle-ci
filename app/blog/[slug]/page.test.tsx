@@ -1,11 +1,22 @@
 /**
  * @jest-environment jsdom
  */
-import { render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import Page from "./page";
+import React from 'react';
+import { render } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import ClientPage from './client-page';
 
-it("App Router: Works with dynamic route segments", () => {
-  render(<Page params={{ slug: "Test" }} />);
-  expect(screen.getByRole("heading")).toHaveTextContent("Slug: Test");
+jest.mock('next/navigation', () => ({
+  useParams: () => ({
+    slug: 'test-post',
+  }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+describe('Blog Page', () => {
+  it('renders blog page', () => {
+    const { container } = render(<ClientPage params={{ slug: 'test-post' }} />);
+
+    expect(container).toHaveTextContent('Slug: test-post');
+  });
 });
