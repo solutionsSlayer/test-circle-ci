@@ -47,16 +47,19 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 ## Pipeline CI/CD
 
 Notre pipeline inclut :
+
 - Build automatique
 - Tests unitaires
 - Vérification de la qualité du code
 - Déploiement automatique sur la branche main
 
 ## Badges
+
 [![CircleCI](https://dl.circleci.com/status-badge/img/gh/{username}/{repo}/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/gh/{username}/{repo}/tree/main)
 [![Coverage](https://codecov.io/gh/{username}/{repo}/branch/main/graph/badge.svg)](https://codecov.io/gh/{username}/{repo})
 
 ## Scripts Disponibles
+
 - `npm run test` - Lance les tests en mode watch
 - `npm run test:ci` - Lance les tests pour CI
 - `npm run build` - Build le projet

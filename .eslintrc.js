@@ -21,11 +21,7 @@ module.exports = {
     ecmaVersion: 'latest',
     sourceType: 'module',
   },
-  plugins: [
-    'react',
-    '@typescript-eslint',
-    'jest',
-  ],
+  plugins: ['react', '@typescript-eslint', 'jest'],
   settings: {
     react: {
       version: 'detect',
@@ -35,10 +31,13 @@ module.exports = {
     'react/react-in-jsx-scope': 'off', // Not needed in Next.js
     'react/prop-types': 'off', // Using TypeScript instead
     '@typescript-eslint/explicit-module-boundary-types': 'off',
-    '@typescript-eslint/no-unused-vars': ['error', { 
-      argsIgnorePattern: '^_',
-      varsIgnorePattern: '^_' 
-    }],
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+      },
+    ],
   },
   overrides: [
     {
@@ -49,4 +48,4 @@ module.exports = {
       },
     },
   ],
-}; 
+};
