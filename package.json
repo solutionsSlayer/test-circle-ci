@@ -6,7 +6,8 @@
     "start": "next start",
     "test": "jest --watch --ci",
     "test:ci": "jest --ci",
-    "lint": "eslint . --ext .ts,.tsx",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "test:coverage": "jest --coverage",
@@ -28,7 +29,12 @@
     "jest-environment-jsdom": "29.7.0",
     "node-mocks-http": "^1.16.2",
     "typescript": "5.3.3",
-    "eslint": "8.57.1",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint-plugin-jest": "^27.6.0",
+    "eslint-plugin-react": "^7.33.2",
     "prettier": "2.8.8"
   }
 }

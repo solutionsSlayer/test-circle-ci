@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-let history: {
+const history: {
     a: number;
     b: number;
     operator: string;
@@ -9,6 +9,7 @@ let history: {
 
 
 export async function GET() {
+    const history = [{id: 1, title: 'test'}];
     return NextResponse.json(history);
 }
 

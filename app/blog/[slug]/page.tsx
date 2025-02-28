@@ -17,8 +17,8 @@ export default async function Page({
   params,
   searchParams 
 }: PageProps) {
-  const resolvedParams = await params;
-  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const _resolvedParams = await params;
+  const _resolvedSearchParams = searchParams ? await searchParams : undefined;
   
   return <ClientPage />;
 }
