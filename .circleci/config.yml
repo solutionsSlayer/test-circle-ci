@@ -444,6 +444,9 @@ workflows:
       - prepare_deployment:
           requires:
             - unit_tests
+          filters:
+            branches:
+              ignore: /^feature.*/
       
       # Develop branch deployments
       - deploy_development:
