@@ -357,11 +357,11 @@ jobs:
             DEPLOYMENT_URL=$(vercel deploy --prebuilt --prod --token=${VERCEL_TOKEN})
             echo "Production deployment available at: $DEPLOYMENT_URL"
             
-            ALIAS_NAME="nextjs-calculator"
-            vercel alias set $DEPLOYMENT_URL $ALIAS_NAME --token=${VERCEL_TOKEN}
-            
+            # Alias production
+            ALIAS_NAME="nextjs-calculator-${CIRCLE_PROJECT_USERNAME}"
+            vercel alias set $DEPLOYMENT_URL $ALIAS_NAME --token=${VERCEL_TOKEN} || echo "Could not set alias, but deployment is still available at $DEPLOYMENT_URL"
             ALIASED_URL="https://$ALIAS_NAME.vercel.app"
-            echo "Production deployment with alias available at: $ALIASED_URL"
+            echo "Production deployment with alias available at: $ALIASED_URL (if alias was successful)"
       - run:
           name: Run production verification
           command: echo "Running production verification tests..."
