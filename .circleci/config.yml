@@ -108,7 +108,7 @@ jobs:
                 "https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/issues/$PR_NUMBER/comments"
             fi
 
-  # Deploys to the integration/pre-prod environment when PRs are made to main
+  # Deploys to the integration/pre-prod environment when PRs are made to master
   deploy_integration:
     executor: 
       name: node/default
@@ -178,13 +178,13 @@ workflows:
             branches:
               only: develop
 
-      # Deploy to integration/pre-prod from main branch PRs
+      # Deploy to integration/pre-prod from master branch PRs
       - deploy_integration:
           requires:
             - unit_tests
           filters:
             branches:
-              only: main
+              only: master
 
       # Manual approval for production deployment
       - approve_production:
@@ -193,7 +193,7 @@ workflows:
             - deploy_integration
           filters:
             branches:
-              only: main
+              only: master
 
       # Deploy to production after approval
       - deploy_production:
@@ -201,4 +201,4 @@ workflows:
             - approve_production
           filters:
             branches:
-              only: main
+              only: master
