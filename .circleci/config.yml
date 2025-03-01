@@ -167,10 +167,6 @@ jobs:
       - run:
           name: Prepare for deployment
           command: echo "Preparing deployment environment..."
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .vercel
 
   deploy_development:
     executor: 
