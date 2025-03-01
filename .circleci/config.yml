@@ -407,11 +407,30 @@ jobs:
               StrictHostKeyChecking no' > ~/.ssh/config
             chmod 600 ~/.ssh/config
       - run:
+          name: Sync master branch
+          command: |
+            # Get current hotfix branch name
+            HOTFIX_BRANCH=${CIRCLE_BRANCH}
+            echo "Syncing from hotfix branch: $HOTFIX_BRANCH to master"
+            
+            # Sync with master branch
+            git fetch origin
+            git checkout master || git checkout -b master origin/master
+            git pull origin master
+            git merge --no-edit ${HOTFIX_BRANCH} || {
+              echo "⚠️ Merge conflict detected, attempting to resolve..."
+              # In case of conflicts, prefer hotfix changes
+              git checkout --theirs .
+              git add .
+              git commit -m "Merge hotfix ${HOTFIX_BRANCH} into master (auto-resolved conflicts)"
+            }
+            git push origin master
+      - run:
           name: Sync integration branch
           command: |
             # Get current hotfix branch name
             HOTFIX_BRANCH=${CIRCLE_BRANCH}
-            echo "Syncing from hotfix branch: $HOTFIX_BRANCH"
+            echo "Syncing from hotfix branch: $HOTFIX_BRANCH to integration"
             
             # Sync with integration branch
             git fetch origin
@@ -430,6 +449,7 @@ jobs:
           command: |
             # Get current hotfix branch name
             HOTFIX_BRANCH=${CIRCLE_BRANCH}
+            echo "Syncing from hotfix branch: $HOTFIX_BRANCH to develop"
             
             # Sync with develop branch
             git fetch origin
@@ -446,14 +466,14 @@ jobs:
       - run:
           name: Notify successful sync
           command: |
-            echo "Successfully synchronized hotfix with integration and develop branches"
+            echo "Successfully synchronized hotfix with master, integration, and develop branches"
             
             if [[ -n "$CIRCLE_PULL_REQUEST" ]]; then
               PR_NUMBER=${CIRCLE_PULL_REQUEST##*/}
               curl -X POST \
                 -H "Authorization: token $GITHUB_TOKEN" \
                 -H "Content-Type: application/json" \
-                -d "{\"body\":\"Hotfix has been successfully deployed to production and synchronized with integration and develop branches.\"}" \
+                -d "{\"body\":\"Hotfix has been successfully deployed to production and synchronized with master, integration, and develop branches.\"}" \
                 "https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/issues/$PR_NUMBER/comments"
             fi
 
