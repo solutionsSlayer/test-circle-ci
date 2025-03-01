@@ -85,9 +85,6 @@ jobs:
     executor: 
       name: node/default
       tag: '18.18'
-    environment:
-      VERCEL_ORG_ID: ${VERCEL_ORG_ID}
-      VERCEL_PROJECT_ID: ${VERCEL_PROJECT_ID}
     steps:
       - setup_environment
       - attach_workspace:
@@ -96,7 +93,7 @@ jobs:
       - run:
           name: Deploy to Preview
           command: |
-            DEPLOYMENT_URL=$(vercel deploy --token=${VERCEL_TOKEN} --confirm)
+            DEPLOYMENT_URL=$(vercel deploy --token=${VERCEL_TOKEN} --yes)
             echo "Preview deployed to: $DEPLOYMENT_URL"
             echo "export PREVIEW_URL=$DEPLOYMENT_URL" >> $BASH_ENV
       - run:
@@ -116,10 +113,6 @@ jobs:
     executor: 
       name: node/default
       tag: '18.18'
-    environment:
-      VERCEL_ORG_ID: ${VERCEL_ORG_ID}
-      VERCEL_PROJECT_ID: ${VERCEL_PROJECT_ID}
-      VERCEL_TOKEN: ${VERCEL_TOKEN}
     steps:
       - setup_environment
       - attach_workspace:
@@ -138,9 +131,6 @@ jobs:
     executor: 
       name: node/default
       tag: '18.18'
-    environment:
-      VERCEL_ORG_ID: ${VERCEL_ORG_ID}
-      VERCEL_PROJECT_ID: ${VERCEL_PROJECT_ID}
     steps:
       - setup_environment
       - attach_workspace:
