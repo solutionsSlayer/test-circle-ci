@@ -80,8 +80,8 @@ jobs:
           path: ./coverage
           destination: coverage
 
-  # Deploys a preview environment for feature branches to allow testing before merging
-  deploy_preview:
+  # Deploys to the development environment when changes are merged to develop
+  deploy_development:
     executor: 
       name: node/default
       tag: '18.18'
@@ -91,11 +91,11 @@ jobs:
           at: .
       - install_vercel_cli
       - run:
-          name: Deploy to Preview
+          name: Deploy to Development
           command: |
             DEPLOYMENT_URL=$(vercel deploy --token=${VERCEL_TOKEN} --yes)
-            echo "Preview deployed to: $DEPLOYMENT_URL"
-            echo "export PREVIEW_URL=$DEPLOYMENT_URL" >> $BASH_ENV
+            echo "Development deployment available at: $DEPLOYMENT_URL"
+            echo "export DEV_URL=$DEPLOYMENT_URL" >> $BASH_ENV
       - run:
           name: Comment on PR
           command: |
@@ -104,12 +104,12 @@ jobs:
               curl -X POST \
                 -H "Authorization: token $GITHUB_TOKEN" \
                 -H "Content-Type: application/json" \
-                -d "{\"body\":\"Preview deployment available at: $PREVIEW_URL\"}" \
+                -d "{\"body\":\"Development deployment available at: $DEV_URL\"}" \
                 "https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/issues/$PR_NUMBER/comments"
             fi
 
-  # Deploys to the staging environment automatically when changes are merged to main
-  deploy_staging:
+  # Deploys to the integration/pre-prod environment when PRs are made to main
+  deploy_integration:
     executor: 
       name: node/default
       tag: '18.18'
@@ -119,12 +119,24 @@ jobs:
           at: .
       - install_vercel_cli
       - run:
-          name: Deploy to Staging
+          name: Deploy to Integration/Pre-Prod
           command: |
             vercel pull --yes --environment=preview --token=${VERCEL_TOKEN}
             vercel build --token=${VERCEL_TOKEN}
-            STAGING_URL=$(vercel deploy --prebuilt --token=${VERCEL_TOKEN})
-            echo "Staging deployment available at: $STAGING_URL"
+            INTEGRATION_URL=$(vercel deploy --prebuilt --token=${VERCEL_TOKEN})
+            echo "Integration deployment available at: $INTEGRATION_URL"
+            echo "export INTEGRATION_URL=$INTEGRATION_URL" >> $BASH_ENV
+      - run:
+          name: Comment on PR
+          command: |
+            if [[ -n "$CIRCLE_PULL_REQUEST" ]]; then
+              PR_NUMBER=${CIRCLE_PULL_REQUEST##*/}
+              curl -X POST \
+                -H "Authorization: token $GITHUB_TOKEN" \
+                -H "Content-Type: application/json" \
+                -d "{\"body\":\"Integration deployment available at: $INTEGRATION_URL\"}" \
+                "https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/issues/$PR_NUMBER/comments"
+            fi
 
   # Deploys to the production environment after manual approval
   deploy_production:
@@ -146,52 +158,44 @@ jobs:
 
 workflows:
   version: 2
-  # The main CI/CD pipeline, consisting of build, test, and multi-environment deployment steps
-  build-test-deploy:
+  # GitFlow CI/CD pipeline
+  gitflow-pipeline:
     jobs:
-      # Step 1: Build the application artifacts
+      # Common steps for all branches: build, lint, test
       - build
-      
-      # Step 2: Run code quality checks
       - lint:
           requires:
             - build
-      
-      # Step 3: Execute automated tests
       - unit_tests:
           requires:
             - lint
-      
-      # Step 4a: Deploy preview for feature branches
-      # Creates temporary environments for testing new features
-      - deploy_preview:
+
+      # Deploy to development environment from develop branch
+      - deploy_development:
           requires:
             - unit_tests
           filters:
             branches:
-              ignore: main
-      
-      # Step 4b: Deploy to staging environment
-      # Automatically deploys main branch to staging for stakeholder review
-      - deploy_staging:
+              only: develop
+
+      # Deploy to integration/pre-prod from main branch PRs
+      - deploy_integration:
           requires:
             - unit_tests
           filters:
             branches:
               only: main
-      
-      # Step 5: Manual approval gate before production
-      # Requires human verification and approval before proceeding to production
+
+      # Manual approval for production deployment
       - approve_production:
           type: approval
           requires:
-            - deploy_staging
+            - deploy_integration
           filters:
             branches:
               only: main
-      
-      # Step 6: Deploy to production environment
-      # Final deployment to the live production environment
+
+      # Deploy to production after approval
       - deploy_production:
           requires:
             - approve_production
