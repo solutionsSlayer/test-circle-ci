@@ -444,15 +444,10 @@ workflows:
       - prepare_deployment:
           requires:
             - unit_tests
-      
-      # Feature branch deployments
-      - deploy_development:
-          requires:
-            - prepare_deployment
           filters:
             branches:
-              only: /^feature.*/
-
+              ignore: /^feature.*/
+      
       # Develop branch deployments
       - deploy_development:
           name: deploy_to_dev_environment
