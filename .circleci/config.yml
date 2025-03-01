@@ -97,10 +97,19 @@ jobs:
             BRANCH_NAME=${CIRCLE_BRANCH}
             # Create a cleaner version of branch name for URL (remove special chars)
             CLEAN_BRANCH=$(echo $BRANCH_NAME | tr -cd '[:alnum:]-' | tr '[:upper:]' '[:lower:]')
-            # Deploy with a meaningful alias
-            DEPLOYMENT_URL=$(vercel deploy --token=${VERCEL_TOKEN} --yes --alias with-jest-circle-ci-dev-${CLEAN_BRANCH})
+            
+            # First deploy to get the URL
+            DEPLOYMENT_URL=$(vercel deploy --token=${VERCEL_TOKEN} --yes)
             echo "Development deployment available at: $DEPLOYMENT_URL"
-            echo "export DEV_URL=$DEPLOYMENT_URL" >> $BASH_ENV
+            
+            # Then create an alias for the deployment
+            ALIAS_NAME="with-jest-circle-ci-dev-${CLEAN_BRANCH}"
+            vercel alias set $DEPLOYMENT_URL $ALIAS_NAME --token=${VERCEL_TOKEN}
+            
+            # Create the URL with the alias for use in PR comments
+            ALIASED_URL="https://$ALIAS_NAME.vercel.app"
+            echo "Development deployment with alias available at: $ALIASED_URL"
+            echo "export DEV_URL=$ALIASED_URL" >> $BASH_ENV
       - run:
           name: Comment on PR
           command: |
@@ -128,10 +137,19 @@ jobs:
           command: |
             vercel pull --yes --environment=preview --token=${VERCEL_TOKEN}
             vercel build --token=${VERCEL_TOKEN}
-            # Deploy with integration alias for a cleaner URL
-            INTEGRATION_URL=$(vercel deploy --prebuilt --token=${VERCEL_TOKEN} --alias with-jest-circle-ci-integration)
-            echo "Integration deployment available at: $INTEGRATION_URL"
-            echo "export INTEGRATION_URL=$INTEGRATION_URL" >> $BASH_ENV
+            
+            # First deploy to get the URL
+            DEPLOYMENT_URL=$(vercel deploy --prebuilt --token=${VERCEL_TOKEN})
+            echo "Integration deployment available at: $DEPLOYMENT_URL"
+            
+            # Then create an alias for the deployment
+            ALIAS_NAME="with-jest-circle-ci-integration"
+            vercel alias set $DEPLOYMENT_URL $ALIAS_NAME --token=${VERCEL_TOKEN}
+            
+            # Create the URL with the alias for use in PR comments
+            ALIASED_URL="https://$ALIAS_NAME.vercel.app"
+            echo "Integration deployment with alias available at: $ALIASED_URL"
+            echo "export INTEGRATION_URL=$ALIASED_URL" >> $BASH_ENV
       - run:
           name: Comment on PR
           command: |
@@ -159,9 +177,18 @@ jobs:
           command: |
             vercel pull --yes --environment=production --token=${VERCEL_TOKEN}
             vercel build --prod --token=${VERCEL_TOKEN}
-            # Deploy to production with a clean production alias
-            PRODUCTION_URL=$(vercel deploy --prebuilt --prod --token=${VERCEL_TOKEN} --alias with-jest-circle-ci)
-            echo "Production deployment available at: $PRODUCTION_URL"
+            
+            # First deploy to get the URL
+            DEPLOYMENT_URL=$(vercel deploy --prebuilt --prod --token=${VERCEL_TOKEN})
+            echo "Production deployment available at: $DEPLOYMENT_URL"
+            
+            # Then create an alias for the deployment
+            ALIAS_NAME="with-jest-circle-ci"
+            vercel alias set $DEPLOYMENT_URL $ALIAS_NAME --token=${VERCEL_TOKEN}
+            
+            # Create the URL with the alias for production
+            ALIASED_URL="https://$ALIAS_NAME.vercel.app"
+            echo "Production deployment with alias available at: $ALIASED_URL"
 
 workflows:
   version: 2
