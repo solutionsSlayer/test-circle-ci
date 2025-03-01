@@ -10,11 +10,21 @@ commands:
     description: "Set up the Node.js environment and install dependencies"
     steps:
       - checkout
+      # Restauration des caches plus efficaces
+      - restore_cache:
+          keys:
+            - v1-npm-deps-{{ checksum "package-lock.json" }}
+            - v1-npm-deps-
       - node/install-packages:
           pkg-manager: npm
           cache-path: ~/project/node_modules
           cache-version: v1
           override-ci-command: npm ci
+      # Sauvegarde du cache des dépendances
+      - save_cache:
+          key: v1-npm-deps-{{ checksum "package-lock.json" }}
+          paths:
+            - node_modules
 
   install_vercel_cli:
     description: "Install Vercel CLI for deployments"
@@ -33,6 +43,24 @@ commands:
       - store_artifacts:
           path: ./coverage
           destination: coverage-report
+
+  cache_next_build:
+    description: "Cache Next.js build files"
+    steps:
+      - save_cache:
+          key: v1-next-build-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - .next
+            - .vercel/output
+
+  restore_next_build:
+    description: "Restore Next.js build files from cache"
+    steps:
+      - restore_cache:
+          keys:
+            - v1-next-build-{{ .Branch }}-{{ .Revision }}
+            - v1-next-build-{{ .Branch }}-
+            - v1-next-build-
 
 ##########################################
 # BUILD STAGE JOBS
@@ -59,12 +87,22 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
+      # Cache pour les résultats d'ESLint
+      - restore_cache:
+          keys:
+            - v1-eslint-cache-{{ .Branch }}-{{ checksum "package.json" }}
+            - v1-eslint-cache-{{ .Branch }}-
+            - v1-eslint-cache-
       - run:
           name: Run ESLint
           command: npm run lint || echo "Linting issues detected"
       - run:
           name: Check formatting with Prettier
           command: npx prettier --check "**/*.{js,jsx,ts,tsx}" || echo "Formatting issues detected"
+      - save_cache:
+          key: v1-eslint-cache-{{ .Branch }}-{{ checksum "package.json" }}
+          paths:
+            - .eslintcache
       - store_artifacts:
           path: eslint-results.json
           destination: lint-results
@@ -77,14 +115,26 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
+      - restore_next_build
+      # Ajouter un marqueur de temps pour détecter les builds incrémentaux
+      - run:
+          name: Check for incremental build
+          command: |
+            if [ -d ".next" ]; then
+              echo "Using incremental build"
+            else
+              echo "Using full build"
+            fi
       - run:
           name: Build application
           command: npm run build
+      - cache_next_build
       - persist_to_workspace:
           root: .
           paths:
             - .next
             - public
+            - .vercel/output
 
 ##########################################
 # TEST STAGE JOBS
@@ -97,9 +147,19 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
+      # Cache pour les résultats de Jest
+      - restore_cache:
+          keys:
+            - v1-jest-cache-{{ .Branch }}-{{ checksum "package.json" }}
+            - v1-jest-cache-{{ .Branch }}-
+            - v1-jest-cache-
       - run:
           name: Run unit tests
           command: npm run test:ci
+      - save_cache:
+          key: v1-jest-cache-{{ .Branch }}-{{ checksum "package.json" }}
+          paths:
+            - .jest-cache
       - save_test_results
 
   integration_tests:
@@ -148,9 +208,18 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
+      # Cache pour les données de sécurité
+      - restore_cache:
+          keys:
+            - v1-security-cache-{{ checksum "package-lock.json" }}
+            - v1-security-cache-
       - run:
           name: Run dependency vulnerability scan
           command: npm audit --production || echo "Vulnerabilities found"
+      - save_cache:
+          key: v1-security-cache-{{ checksum "package-lock.json" }}
+          paths:
+            - ~/.npm/_cacache
 
 ##########################################
 # DEPLOYMENT STAGE JOBS
@@ -167,6 +236,11 @@ jobs:
       - run:
           name: Prepare for deployment
           command: echo "Preparing deployment environment..."
+      # Cache des configurations Vercel
+      - save_cache:
+          key: v1-vercel-config-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - .vercel
 
   deploy_development:
     executor: 
@@ -177,6 +251,12 @@ jobs:
       - attach_workspace:
           at: .
       - install_vercel_cli
+      # Restauration du cache Vercel
+      - restore_cache:
+          keys:
+            - v1-vercel-config-{{ .Branch }}-{{ .Revision }}
+            - v1-vercel-config-{{ .Branch }}-
+            - v1-vercel-config-
       - run:
           name: Pull Vercel Environment Information
           command: vercel pull --yes --environment=preview --token=${VERCEL_TOKEN}
@@ -219,6 +299,12 @@ jobs:
       - attach_workspace:
           at: .
       - install_vercel_cli
+      # Restauration du cache Vercel
+      - restore_cache:
+          keys:
+            - v1-vercel-config-{{ .Branch }}-{{ .Revision }}
+            - v1-vercel-config-{{ .Branch }}-
+            - v1-vercel-config-
       - run:
           name: Pull Vercel Environment Information
           command: vercel pull --yes --environment=preview --token=${VERCEL_TOKEN}
@@ -253,6 +339,12 @@ jobs:
       - attach_workspace:
           at: .
       - install_vercel_cli
+      # Restauration du cache Vercel
+      - restore_cache:
+          keys:
+            - v1-vercel-config-{{ .Branch }}-{{ .Revision }}
+            - v1-vercel-config-{{ .Branch }}-
+            - v1-vercel-config-
       - run:
           name: Pull Vercel Production Environment Information
           command: vercel pull --yes --environment=production --token=${VERCEL_TOKEN}
@@ -298,7 +390,7 @@ jobs:
 workflows:
   version: 2
   
-  # Main GitFlow CI/CD pipeline
+  # master GitFlow CI/CD pipeline
   gitflow_pipeline:
     jobs:
       # BUILD STAGE - Runs on all branches
@@ -328,7 +420,7 @@ workflows:
               only: 
                 - develop
                 - integration
-                - main
+                - master
       - security_tests:
           requires:
             - build_application
@@ -337,7 +429,7 @@ workflows:
               only: 
                 - develop
                 - integration
-                - main
+                - master
       - accessibility_tests:
           requires:
             - unit_tests
@@ -346,7 +438,7 @@ workflows:
               only: 
                 - develop
                 - integration
-                - main
+                - master
 
       # DEPLOYMENT STAGE - Environment-specific deployments
       - prepare_deployment:
@@ -382,7 +474,7 @@ workflows:
             branches:
               only: integration
       
-      # Main branch deployment process
+      # master branch deployment process
       - deploy_integration:
           name: deploy_to_staging
           requires:
@@ -392,7 +484,7 @@ workflows:
             - prepare_deployment
           filters:
             branches:
-              only: main
+              only: master
               
       - approve_production:
           type: approval
@@ -400,21 +492,21 @@ workflows:
             - deploy_to_staging
           filters:
             branches:
-              only: main
+              only: master
               
       - deploy_production:
           requires:
             - approve_production
           filters:
             branches:
-              only: main
+              only: master
               
       - load_testing:
           requires:
             - deploy_production
           filters:
             branches:
-              only: main
+              only: master
 
   # Hotfix specific workflow
   hotfix_pipeline:
