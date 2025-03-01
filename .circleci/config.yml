@@ -93,7 +93,12 @@ jobs:
       - run:
           name: Deploy to Development
           command: |
-            DEPLOYMENT_URL=$(vercel deploy --token=${VERCEL_TOKEN} --yes)
+            # Extract branch name for use in URL
+            BRANCH_NAME=${CIRCLE_BRANCH}
+            # Create a cleaner version of branch name for URL (remove special chars)
+            CLEAN_BRANCH=$(echo $BRANCH_NAME | tr -cd '[:alnum:]-' | tr '[:upper:]' '[:lower:]')
+            # Deploy with a meaningful alias
+            DEPLOYMENT_URL=$(vercel deploy --token=${VERCEL_TOKEN} --yes --alias with-jest-circle-ci-dev-${CLEAN_BRANCH})
             echo "Development deployment available at: $DEPLOYMENT_URL"
             echo "export DEV_URL=$DEPLOYMENT_URL" >> $BASH_ENV
       - run:
@@ -123,7 +128,8 @@ jobs:
           command: |
             vercel pull --yes --environment=preview --token=${VERCEL_TOKEN}
             vercel build --token=${VERCEL_TOKEN}
-            INTEGRATION_URL=$(vercel deploy --prebuilt --token=${VERCEL_TOKEN})
+            # Deploy with integration alias for a cleaner URL
+            INTEGRATION_URL=$(vercel deploy --prebuilt --token=${VERCEL_TOKEN} --alias with-jest-circle-ci-integration)
             echo "Integration deployment available at: $INTEGRATION_URL"
             echo "export INTEGRATION_URL=$INTEGRATION_URL" >> $BASH_ENV
       - run:
@@ -153,7 +159,8 @@ jobs:
           command: |
             vercel pull --yes --environment=production --token=${VERCEL_TOKEN}
             vercel build --prod --token=${VERCEL_TOKEN}
-            PRODUCTION_URL=$(vercel deploy --prebuilt --prod --token=${VERCEL_TOKEN})
+            # Deploy to production with a clean production alias
+            PRODUCTION_URL=$(vercel deploy --prebuilt --prod --token=${VERCEL_TOKEN} --alias with-jest-circle-ci)
             echo "Production deployment available at: $PRODUCTION_URL"
 
 workflows:
