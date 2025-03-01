@@ -88,9 +88,10 @@ Notre pipeline CI/CD est organisé en trois étapes principales :
 - **Tests de sécurité** : Analyse des vulnérabilités
 
 ### 3. Déploiement
-- **Déploiement en développement** : Pour les branches `feature/*` et `develop`
+- **Déploiement en développement** : Pour la branche `develop`
 - **Déploiement en intégration** : Pour la branche `integration`
 - **Déploiement en production** : Pour la branche `master` (avec approbation manuelle)
+- **Déploiement de prévisualisation de hotfix** : Pour les branches `hotfix/*`
 
 Voici la représentation visuelle du pipeline :
 
@@ -171,7 +172,7 @@ Le projet utilise trois environnements distincts :
 
 ### Environnement de développement
 - **URL** : `https://nextjs-calculator-dev-{branch-name}.vercel.app`
-- **Branche source** : `develop` et `feature/*`
+- **Branche source** : `develop` et `hotfix/*`
 - **Objectif** : Test des nouvelles fonctionnalités
 
 ### Environnement d'intégration
@@ -180,7 +181,7 @@ Le projet utilise trois environnements distincts :
 - **Objectif** : Validation avant production
 
 ### Environnement de production
-- **URL** : `https://nextjs-calculator.vercel.app`
+- **URL** : `https://nextjs-calculator-{CIRCLE_PROJECT_USERNAME}.vercel.app`
 - **Branche source** : `master`
 - **Objectif** : Application en production
 
