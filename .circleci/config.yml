@@ -392,9 +392,17 @@ workflows:
   
   # master GitFlow CI/CD pipeline
   gitflow_pipeline:
+    when:
+      not:
+        matches:
+          pattern: "^hotfix.*"
+          value: << pipeline.git.branch >>
     jobs:
       # BUILD STAGE - Runs on all branches
-      - install_dependencies
+      - install_dependencies:
+          filters:
+            branches:
+              ignore: /^hotfix.*/
       - code_analysis:
           requires:
             - install_dependencies
