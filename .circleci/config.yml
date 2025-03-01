@@ -10,7 +10,7 @@ commands:
     description: "Set up the Node.js environment and install dependencies"
     steps:
       - checkout
-      # Restauration des caches plus efficaces
+      # Restore caches more efficiently
       - restore_cache:
           keys:
             - v1-npm-deps-{{ checksum "package-lock.json" }}
@@ -20,7 +20,7 @@ commands:
           cache-path: ~/project/node_modules
           cache-version: v1
           override-ci-command: npm ci
-      # Sauvegarde du cache des dépendances
+      # Save dependencies cache
       - save_cache:
           key: v1-npm-deps-{{ checksum "package-lock.json" }}
           paths:
@@ -87,7 +87,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
-      # Cache pour les résultats d'ESLint
+      # Cache eslint results
       - restore_cache:
           keys:
             - v1-eslint-cache-{{ .Branch }}-{{ checksum "package.json" }}
@@ -116,7 +116,7 @@ jobs:
       - attach_workspace:
           at: .
       - restore_next_build
-      # Ajouter un marqueur de temps pour détecter les builds incrémentaux
+      # Add a timestamp to detect incremental builds
       - run:
           name: Check for incremental build
           command: |
@@ -147,7 +147,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
-      # Cache pour les résultats de Jest
+      # Cache jest results
       - restore_cache:
           keys:
             - v1-jest-cache-{{ .Branch }}-{{ checksum "package.json" }}
@@ -208,7 +208,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
-      # Cache pour les données de sécurité
+      # Cache security data
       - restore_cache:
           keys:
             - v1-security-cache-{{ checksum "package-lock.json" }}
@@ -236,7 +236,7 @@ jobs:
       - run:
           name: Prepare for deployment
           command: echo "Preparing deployment environment..."
-      # Cache des configurations Vercel
+      # Cache vercel config
       - save_cache:
           key: v1-vercel-config-{{ .Branch }}-{{ .Revision }}
           paths:
@@ -545,6 +545,14 @@ workflows:
           name: deploy_hotfix_preview
           requires:
             - prepare_deployment
+          filters:
+            branches:
+              only: /^hotfix.*/
+      
+      - deploy_production:
+          name: deploy_hotfix_to_production
+          requires:
+            - deploy_hotfix_preview
           filters:
             branches:
               only: /^hotfix.*/

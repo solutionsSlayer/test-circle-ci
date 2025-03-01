@@ -240,7 +240,17 @@ Le projet utilise trois environnements distincts :
    git push -u origin hotfix/bug-critique
    ```
 
-3. Créer une Pull Request vers `master`
+3. **Attention**: Le pipeline CI/CD déploiera automatiquement en production après les tests de base.
+
+4. Créer une Pull Request vers `master` pour officialiser le changement dans l'historique
+
+5. Après merge dans `master`, également merger dans `develop` :
+   ```bash
+   git checkout develop
+   git pull
+   git merge --no-ff hotfix/bug-critique
+   git push origin develop
+   ```
 
 ## 🔑 Variables d'environnement
 
