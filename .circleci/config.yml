@@ -470,21 +470,13 @@ workflows:
               only: integration
       
       # master branch deployment process
-      - deploy_integration:
-          name: deploy_to_staging
+      - approve_production:
+          type: approval
           requires:
             - regression_tests
             - security_tests
             - accessibility_tests
             - prepare_deployment
-          filters:
-            branches:
-              only: master
-              
-      - approve_production:
-          type: approval
-          requires:
-            - deploy_to_staging
           filters:
             branches:
               only: master
