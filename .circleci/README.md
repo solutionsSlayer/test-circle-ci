@@ -244,13 +244,7 @@ Le projet utilise trois environnements distincts :
 
 4. Créer une Pull Request vers `master` pour officialiser le changement dans l'historique
 
-5. Après merge dans `master`, également merger dans `develop` :
-   ```bash
-   git checkout develop
-   git pull
-   git merge --no-ff hotfix/bug-critique
-   git push origin develop
-   ```
+5. **Note importante**: Le pipeline CI/CD synchronisera automatiquement le hotfix avec les branches `integration` et `develop` après le déploiement en production. Aucune action manuelle n'est requise pour cette étape de synchronisation.
 
 ## 🔑 Variables d'environnement
 
@@ -262,11 +256,18 @@ Les variables d'environnement suivantes doivent être configurées dans CircleCI
 | `VERCEL_ORG_ID` | ID de l'organisation Vercel |
 | `VERCEL_PROJECT_ID` | ID du projet Vercel |
 | `GITHUB_TOKEN` | Token d'API GitHub pour commenter les PR |
+| `SSH_KEY_FINGERPRINT` | Empreinte de la clé SSH pour la synchronisation des branches après hotfix |
 
 Pour configurer ces variables :
 1. Aller dans CircleCI > Projet > Project Settings > Environment Variables
 2. Ajouter chaque variable avec sa valeur
 3. S'assurer que les variables sensibles sont marquées comme protégées
+
+Pour configurer la clé SSH pour la synchronisation des branches :
+1. Générer une paire de clés SSH avec `ssh-keygen` (si vous n'en avez pas déjà)
+2. Ajouter la clé publique aux Deploy Keys du dépôt GitHub/GitLab avec l'option "Allow write access"
+3. Ajouter la clé privée dans CircleCI > Projet > Project Settings > SSH Keys > Add SSH Key
+4. Copier l'empreinte (fingerprint) générée et l'ajouter comme valeur de la variable `SSH_KEY_FINGERPRINT`
 
 ## 🧪 Tests
 

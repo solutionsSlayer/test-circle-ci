@@ -59,7 +59,7 @@ Ces jobs sont décrits en détail dans la [section Pipeline CI/CD](./README.md#-
 
 ### Pipeline sur branche hotfix
 ![Pipeline hotfix](./images/hotfix.png)
-*Ce pipeline accéléré permet de tester et déployer rapidement des correctifs critiques. Après une prévisualisation rapide, le correctif est automatiquement déployé en production sans étape d'approbation. Il est ensuite important de merger manuellement le hotfix à la fois dans `master` et dans `develop`.*
+*Ce pipeline accéléré permet de tester et déployer rapidement des correctifs critiques. Après une prévisualisation rapide, le correctif est automatiquement déployé en production sans étape d'approbation. Il est ensuite automatiquement synchronisé avec les branches `integration` et `develop` pour maintenir la cohérence du code entre tous les environnements.*
 
 ## 4. Liens
 - [Répertoire GitHub public](https://github.com/solutionsSlayer/with-jest-circle-ci)
