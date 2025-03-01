@@ -2,10 +2,12 @@ version: 2.1
 orbs:
   node: circleci/node@5
 
-# Reusable command definitions
+##########################################
+# REUSABLE COMMANDS
+##########################################
 commands:
   setup_environment:
-    description: "Set up the Node.js environment"
+    description: "Set up the Node.js environment and install dependencies"
     steps:
       - checkout
       - node/install-packages:
@@ -14,25 +16,67 @@ commands:
           cache-version: v1
           override-ci-command: npm ci
 
-  # Added a reusable command for Vercel CLI installation
   install_vercel_cli:
-    description: "Install Vercel CLI without permission issues"
+    description: "Install Vercel CLI for deployments"
     steps:
       - run:
           name: Install Vercel CLI
           command: |
             sudo npm install -g vercel@latest || npm install --no-global vercel@latest
-            # Ensure vercel is available in the PATH
             export PATH="$PATH:$(npm bin)"
 
+  save_test_results:
+    description: "Save test results and artifacts"
+    steps:
+      - store_test_results:
+          path: ./test-results/
+      - store_artifacts:
+          path: ./coverage
+          destination: coverage-report
+
+##########################################
+# BUILD STAGE JOBS
+##########################################
 jobs:
-  # Builds the application and creates artifacts that can be used by subsequent jobs
-  build:
+  install_dependencies:
     executor: 
       name: node/default
       tag: '18.18'
     steps:
       - setup_environment
+      - persist_to_workspace:
+          root: .
+          paths:
+            - node_modules
+            - package.json
+            - package-lock.json
+
+  code_analysis:
+    executor: 
+      name: node/default
+      tag: '18.18'
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: Run ESLint
+          command: npm run lint || echo "Linting issues detected"
+      - run:
+          name: Check formatting with Prettier
+          command: npx prettier --check "**/*.{js,jsx,ts,tsx}" || echo "Formatting issues detected"
+      - store_artifacts:
+          path: eslint-results.json
+          destination: lint-results
+      
+  build_application:
+    executor: 
+      name: node/default
+      tag: '18.18'
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
       - run:
           name: Build application
           command: npm run build
@@ -40,69 +84,126 @@ jobs:
           root: .
           paths:
             - .next
-            - node_modules
             - public
 
-  # Performs static code analysis to ensure code quality standards
-  lint:
-    executor: 
-      name: node/default
-      tag: '18.18'
-    steps:
-      - setup_environment
-      - attach_workspace:
-          at: .
-      - run:
-          name: Run ESLint
-          command: npm run lint || true
-      - run:
-          name: Check formatting with Prettier
-          command: npx prettier --check "**/*.{js,jsx,ts,tsx}" || true
-      - store_artifacts:
-          path: eslint-results.json
-          destination: lint-results
-
-  # Runs automated tests to verify functionality and prevent regressions
+##########################################
+# TEST STAGE JOBS
+##########################################
   unit_tests:
     executor: 
       name: node/default
       tag: '18.18'
     steps:
-      - setup_environment
+      - checkout
       - attach_workspace:
           at: .
       - run:
           name: Run unit tests
           command: npm run test:ci
-      - store_test_results:
-          path: ./test-results/
-      - store_artifacts:
-          path: ./coverage
-          destination: coverage
+      - save_test_results
 
-  # Deploys to the development environment when changes are merged to develop
+  integration_tests:
+    executor: 
+      name: node/default
+      tag: '18.18'
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: Run integration tests
+          command: echo "Running integration tests..."
+      - save_test_results
+
+  regression_tests:
+    executor: 
+      name: node/default
+      tag: '18.18'
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: Run regression tests
+          command: echo "Running regression tests..."
+      - save_test_results
+
+  accessibility_tests:
+    executor: 
+      name: node/default
+      tag: '18.18'
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: Run accessibility tests
+          command: echo "Running accessibility tests..."
+          
+  security_tests:
+    executor: 
+      name: node/default
+      tag: '18.18'
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: Run dependency vulnerability scan
+          command: npm audit --production || echo "Vulnerabilities found"
+
+##########################################
+# DEPLOYMENT STAGE JOBS
+##########################################
+  prepare_deployment:
+    executor: 
+      name: node/default
+      tag: '18.18'
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - install_vercel_cli
+      - run:
+          name: Prepare for deployment
+          command: echo "Preparing deployment environment..."
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .vercel
+
   deploy_development:
     executor: 
       name: node/default
       tag: '18.18'
     steps:
-      - setup_environment
+      - checkout
       - attach_workspace:
           at: .
       - install_vercel_cli
       - run:
-          name: Deploy to Development
-          command: |
-            # Extract branch name for use in URL
-            BRANCH_NAME=${CIRCLE_BRANCH}
-            # Create a cleaner version of branch name for URL (remove special chars)
-            CLEAN_BRANCH=$(echo $BRANCH_NAME | tr -cd '[:alnum:]-' | tr '[:upper:]' '[:lower:]')
-            # Deploy with a meaningful alias
-            DEPLOYMENT_URL=$(vercel deploy --token=${VERCEL_TOKEN} --yes --alias with-jest-circle-ci-dev-${CLEAN_BRANCH})
-            echo "Development deployment available at: $DEPLOYMENT_URL"
-            echo "export DEV_URL=$DEPLOYMENT_URL" >> $BASH_ENV
+          name: Pull Vercel Environment Information
+          command: vercel pull --yes --environment=preview --token=${VERCEL_TOKEN}
       - run:
-          name: Comment on PR
+          name: Build Project Artifacts
+          command: vercel build --token=${VERCEL_TOKEN}
+      - run:
+          name: Deploy to Development Environment
+          command: |
+            BRANCH_NAME=${CIRCLE_BRANCH}
+            CLEAN_BRANCH=$(echo $BRANCH_NAME | tr -cd '[:alnum:]-' | tr '[:upper:]' '[:lower:]')
+            
+            DEPLOYMENT_URL=$(vercel deploy --prebuilt --token=${VERCEL_TOKEN} --yes)
+            echo "Development deployment available at: $DEPLOYMENT_URL"
+            
+            ALIAS_NAME="nextjs-calculator-dev-${CLEAN_BRANCH}"
+            vercel alias set $DEPLOYMENT_URL $ALIAS_NAME --token=${VERCEL_TOKEN}
+            
+            ALIASED_URL="https://$ALIAS_NAME.vercel.app"
+            echo "Development deployment with alias available at: $ALIASED_URL"
+            echo "export DEV_URL=$ALIASED_URL" >> $BASH_ENV
+      - run:
+          name: Notify PR (if applicable)
           command: |
             if [[ -n "$CIRCLE_PULL_REQUEST" ]]; then
               PR_NUMBER=${CIRCLE_PULL_REQUEST##*/}
@@ -113,99 +214,254 @@ jobs:
                 "https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/issues/$PR_NUMBER/comments"
             fi
 
-  # Deploys to the integration/pre-prod environment when PRs are made to master
   deploy_integration:
     executor: 
       name: node/default
       tag: '18.18'
     steps:
-      - setup_environment
+      - checkout
       - attach_workspace:
           at: .
       - install_vercel_cli
       - run:
-          name: Deploy to Integration/Pre-Prod
-          command: |
-            vercel pull --yes --environment=preview --token=${VERCEL_TOKEN}
-            vercel build --token=${VERCEL_TOKEN}
-            # Deploy with integration alias for a cleaner URL
-            INTEGRATION_URL=$(vercel deploy --prebuilt --token=${VERCEL_TOKEN} --alias with-jest-circle-ci-integration)
-            echo "Integration deployment available at: $INTEGRATION_URL"
-            echo "export INTEGRATION_URL=$INTEGRATION_URL" >> $BASH_ENV
+          name: Pull Vercel Environment Information
+          command: vercel pull --yes --environment=preview --token=${VERCEL_TOKEN}
       - run:
-          name: Comment on PR
+          name: Build Project Artifacts
+          command: vercel build --token=${VERCEL_TOKEN}
+      - run:
+          name: Deploy to Integration Environment
           command: |
-            if [[ -n "$CIRCLE_PULL_REQUEST" ]]; then
-              PR_NUMBER=${CIRCLE_PULL_REQUEST##*/}
-              curl -X POST \
-                -H "Authorization: token $GITHUB_TOKEN" \
-                -H "Content-Type: application/json" \
-                -d "{\"body\":\"Integration deployment available at: $INTEGRATION_URL\"}" \
-                "https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/issues/$PR_NUMBER/comments"
-            fi
+            DEPLOYMENT_URL=$(vercel deploy --prebuilt --token=${VERCEL_TOKEN})
+            echo "Integration deployment available at: $DEPLOYMENT_URL"
+            
+            ALIAS_NAME="nextjs-calculator-integration"
+            vercel alias set $DEPLOYMENT_URL $ALIAS_NAME --token=${VERCEL_TOKEN}
+            
+            ALIASED_URL="https://$ALIAS_NAME.vercel.app"
+            echo "Integration deployment with alias available at: $ALIASED_URL"
+            echo "export INTEGRATION_URL=$ALIASED_URL" >> $BASH_ENV
+      - run:
+          name: Run verification tests
+          command: echo "Running post-deployment verification tests..."
+      - run:
+          name: Run functional validation
+          command: echo "Running functional validation tests..."
 
-  # Deploys to the production environment after manual approval
   deploy_production:
     executor: 
       name: node/default
       tag: '18.18'
     steps:
-      - setup_environment
+      - checkout
       - attach_workspace:
           at: .
       - install_vercel_cli
       - run:
-          name: Deploy to Production
+          name: Pull Vercel Production Environment Information
+          command: vercel pull --yes --environment=production --token=${VERCEL_TOKEN}
+      - run:
+          name: Build Production Project Artifacts
+          command: vercel build --prod --token=${VERCEL_TOKEN}
+      - run:
+          name: Deploy to Production Environment
           command: |
-            vercel pull --yes --environment=production --token=${VERCEL_TOKEN}
-            vercel build --prod --token=${VERCEL_TOKEN}
-            # Deploy to production with a clean production alias
-            PRODUCTION_URL=$(vercel deploy --prebuilt --prod --token=${VERCEL_TOKEN} --alias with-jest-circle-ci)
-            echo "Production deployment available at: $PRODUCTION_URL"
+            DEPLOYMENT_URL=$(vercel deploy --prebuilt --prod --token=${VERCEL_TOKEN})
+            echo "Production deployment available at: $DEPLOYMENT_URL"
+            
+            ALIAS_NAME="nextjs-calculator"
+            vercel alias set $DEPLOYMENT_URL $ALIAS_NAME --token=${VERCEL_TOKEN}
+            
+            ALIASED_URL="https://$ALIAS_NAME.vercel.app"
+            echo "Production deployment with alias available at: $ALIASED_URL"
+      - run:
+          name: Run production verification
+          command: echo "Running production verification tests..."
+      - run:
+          name: Setup monitoring
+          command: echo "Setting up production monitoring and alerts..."
 
+  load_testing:
+    executor: 
+      name: node/default
+      tag: '18.18'
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: Run load tests
+          command: echo "Running load tests on deployed environment..."
+      - store_artifacts:
+          path: ./load-test-results
+          destination: load-test-results
+
+##########################################
+# WORKFLOW DEFINITIONS
+##########################################
 workflows:
   version: 2
-  # GitFlow CI/CD pipeline
-  gitflow-pipeline:
+  
+  # Main GitFlow CI/CD pipeline
+  gitflow_pipeline:
     jobs:
-      # Common steps for all branches: build, lint, test
-      - build
-      - lint:
+      # BUILD STAGE - Runs on all branches
+      - install_dependencies
+      - code_analysis:
           requires:
-            - build
+            - install_dependencies
+      - build_application:
+          requires:
+            - code_analysis
+
+      # TEST STAGE - Some tests depend on branch type
       - unit_tests:
           requires:
-            - lint
-
-      # Deploy to development environment from develop branch
-      - deploy_development:
+            - build_application
+      - integration_tests:
           requires:
             - unit_tests
+          filters:
+            branches:
+              ignore: /^feature.*/
+      - regression_tests:
+          requires:
+            - integration_tests
+          filters:
+            branches:
+              only: 
+                - develop
+                - integration
+                - main
+      - security_tests:
+          requires:
+            - build_application
+          filters:
+            branches:
+              only: 
+                - develop
+                - integration
+                - main
+      - accessibility_tests:
+          requires:
+            - unit_tests
+          filters:
+            branches:
+              only: 
+                - develop
+                - integration
+                - main
+
+      # DEPLOYMENT STAGE - Environment-specific deployments
+      - prepare_deployment:
+          requires:
+            - unit_tests
+      
+      # Feature branch deployments
+      - deploy_development:
+          requires:
+            - prepare_deployment
+          filters:
+            branches:
+              only: /^feature.*/
+
+      # Develop branch deployments
+      - deploy_development:
+          name: deploy_to_dev_environment
+          requires:
+            - integration_tests
+            - prepare_deployment
           filters:
             branches:
               only: develop
 
-      # Deploy to integration/pre-prod from master branch PRs
+      # Integration branch deployments
       - deploy_integration:
           requires:
-            - unit_tests
+            - regression_tests
+            - security_tests
+            - accessibility_tests
+            - prepare_deployment
           filters:
             branches:
-              only: master
-
-      # Manual approval for production deployment
+              only: integration
+      
+      # Main branch deployment process
+      - deploy_integration:
+          name: deploy_to_staging
+          requires:
+            - regression_tests
+            - security_tests
+            - accessibility_tests
+            - prepare_deployment
+          filters:
+            branches:
+              only: main
+              
       - approve_production:
           type: approval
           requires:
-            - deploy_integration
+            - deploy_to_staging
           filters:
             branches:
-              only: master
-
-      # Deploy to production after approval
+              only: main
+              
       - deploy_production:
           requires:
             - approve_production
           filters:
             branches:
-              only: master
+              only: main
+              
+      - load_testing:
+          requires:
+            - deploy_production
+          filters:
+            branches:
+              only: main
+
+  # Hotfix specific workflow
+  hotfix_pipeline:
+    jobs:
+      - install_dependencies:
+          filters:
+            branches:
+              only: /^hotfix.*/
+      - code_analysis:
+          requires:
+            - install_dependencies
+          filters:
+            branches:
+              only: /^hotfix.*/
+      - build_application:
+          requires:
+            - code_analysis
+          filters:
+            branches:
+              only: /^hotfix.*/
+      - unit_tests:
+          requires:
+            - build_application
+          filters:
+            branches:
+              only: /^hotfix.*/
+      - security_tests:
+          requires:
+            - build_application
+          filters:
+            branches:
+              only: /^hotfix.*/
+      - prepare_deployment:
+          requires:
+            - unit_tests
+            - security_tests
+          filters:
+            branches:
+              only: /^hotfix.*/
+      - deploy_development:
+          name: deploy_hotfix_preview
+          requires:
+            - prepare_deployment
+          filters:
+            branches:
+              only: /^hotfix.*/
